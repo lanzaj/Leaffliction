@@ -4,7 +4,7 @@ from tensorflow import keras
 
 # Set your constants
 IMAGE_SIZE = 128  # or whatever your model expects
-ROOT_DIR = "./input/leaves"  # directory to walk through
+ROOT_DIR = "./input/valid"  # directory to walk through
 
 # If you don't have CLASS_NAMES anymore, you can recreate them:
 CLASS_NAMES = sorted(os.listdir(ROOT_DIR))

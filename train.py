@@ -1,10 +1,4 @@
 # Imports
-
-
-# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Hide all WARNING/ERROR from TF
-# os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Pretend no GPU exists
-# os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
-
 import os
 import warnings
 import matplotlib.pyplot as plt
@@ -15,7 +9,21 @@ import pandas as pd
 from tensorflow import keras
 from tensorflow.keras import layers
 from keras.preprocessing import image_dataset_from_directory
+import argparse
 
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"  # Hide all WARNING/ERROR from TF
+os.environ["CUDA_VISIBLE_DEVICES"] = "-1"  # Pretend no GPU exists
+os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0"
+
+EPOCHS = 30
+DIR = "./input/leaves"
+
+parser = argparse.ArgumentParser(description="Le path du dossier de data d'entrainement")
+parser.add_argument("dir", help="Le path du dossier de data d'entrainement")
+
+args = parser.parse_args()
+if args.dir:
+    DIR = args.dir
 
 # Reproducability
 def set_seed(seed=31415):
@@ -40,30 +48,11 @@ plt.rc(
 plt.rc("image", cmap="magma")
 warnings.filterwarnings("ignore")  # to clean up output cells
 
-DIR = "./input/leaves"
-CLASS_NAMES = sorted(os.listdir(DIR))
-with open("class_names.json", "w") as f:
-    json.dump(CLASS_NAMES, f)
-
 # Load training and validation sets
-ds_valid_ = image_dataset_from_directory(
-    "./input/leaves",
-    labels="inferred",
-    label_mode="categorical",
-    class_names=CLASS_NAMES,
-    image_size=[128, 128],
-    interpolation="nearest",
-    batch_size=64,
-    shuffle=True,
-    validation_split=0.2,
-    subset="training",
-    seed=123,
-)
 ds_train_ = image_dataset_from_directory(
     "./input/leaves",
     labels="inferred",
     label_mode="categorical",
-    class_names=CLASS_NAMES,
     image_size=[128, 128],
     interpolation="nearest",
     batch_size=64,
@@ -72,6 +61,21 @@ ds_train_ = image_dataset_from_directory(
     subset="training",
     seed=123,
 )
+ds_valid_ = image_dataset_from_directory(
+    "./input/leaves",
+    labels="inferred",
+    label_mode="categorical",
+    image_size=[128, 128],
+    interpolation="nearest",
+    batch_size=64,
+    shuffle=False,
+    validation_split=0.2,
+    subset="validation",
+    seed=123,
+)
+CLASS_NAMES = ds_train_.class_names
+with open("class_names.json", "w") as f:
+    json.dump(CLASS_NAMES, f)
 
 
 # Data Pipeline
@@ -91,6 +95,10 @@ ds_valid = ds_valid_.map(
 
 model = keras.Sequential(
     [
+        layers.Conv2D(32, 3, activation="relu"),
+        layers.MaxPooling2D(),
+        layers.Conv2D(64, 3, activation="relu"),
+        layers.MaxPooling2D(),
         layers.Flatten(),
         layers.Dense(128, activation="relu"),
         layers.Dense(len(CLASS_NAMES), activation="softmax"),
@@ -106,12 +114,13 @@ model.compile(
 history = model.fit(
     ds_train,
     validation_data=ds_valid,
-    epochs=100,
-    verbose=0,
+    epochs=EPOCHS,
+    verbose=1,
 )
 
 history_frame = pd.DataFrame(history.history)
 history_frame.loc[:, ["loss", "val_loss"]].plot()
 history_frame.loc[:, ["accuracy", "val_accuracy"]].plot()
+plt.show()
 
 model.save("my_model.keras")
